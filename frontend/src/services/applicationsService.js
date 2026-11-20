@@ -25,20 +25,48 @@ import { supabase } from '../lib/supabaseClient.js';
  * @param {string[]} application.aiStrengths
  * @param {string[]} application.aiWeaknesses
  * @returns {Promise<{ data: object|null, error: Error|null }>}
- *
- * TODO(Member 3 - Milestone M3):
- *   - get the user id from supabase.auth.getUser()
- *   - supabase.from('applications').insert({ user_id, job_id, quiz_score,
- *       ai_match_score, ai_strengths, ai_weaknesses })
- *   - translate the unique-constraint error (code 23505) into a friendly
- *     "You have already applied for this job" message.
  */
 export async function submitApplication(application) {
-  void supabase;
-  void application;
-  throw new Error(
-    'submitApplication() is not implemented yet (Member 3 - Ahmed Fayez, M3).',
-  );
+  // Read the authenticated identity from Supabase instead of accepting a user
+  // id from the page. RLS also checks that the inserted user_id belongs to the
+  // caller, so the database remains the final security boundary.
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !userData?.user) {
+    return {
+      data: null,
+      error: userError || new Error('You must be signed in to submit an application.'),
+    };
+  }
+
+  const { data, error } = await supabase
+    .from('applications')
+    .insert({
+      user_id: userData.user.id,
+      job_id: application.jobId,
+      quiz_score: application.quizScore,
+      ai_match_score: application.aiMatchScore,
+      ai_strengths: application.aiStrengths,
+      ai_weaknesses: application.aiWeaknesses,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    // The database unique constraint (user_id, job_id) is the reliable
+    // protection against duplicate submissions. The UI check is only a
+    // convenience; this handles a direct submission or a race that the UI
+    // could not prevent.
+    if (error.code === '23505') {
+      const duplicateError = new Error('You have already applied for this job.');
+      duplicateError.code = 'ALREADY_APPLIED';
+      return { data: null, error: duplicateError };
+    }
+
+    return { data: null, error };
+  }
+
+  return { data, error: null };
 }
 
 /**
@@ -47,14 +75,31 @@ export async function submitApplication(application) {
  *   select('id, quiz_score, ai_match_score, ..., jobs(title, company_name)')
  *
  * @returns {Promise<{ data: object[]|null, error: Error|null }>}
- *
- * TODO(Member 3 - Milestone M3): implement with .order('created_at', { ascending: false }).
  */
 export async function getMyApplications() {
-  void supabase;
-  throw new Error(
-    'getMyApplications() is not implemented yet (Member 3 - Ahmed Fayez, M3).',
-  );
+  // The identity is resolved here so this service never trusts a user id passed
+  // by a page or component.
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !userData?.user) {
+    return {
+      data: null,
+      error: userError || new Error('You must be signed in to view applications.'),
+    };
+  }
+
+  // This embedded relation uses the jobs foreign key to fetch the title and
+  // company in the same request. Descending creation time puts submissions
+  // newest first.
+  const { data, error } = await supabase
+    .from('applications')
+    .select(
+      'id, user_id, job_id, quiz_score, ai_match_score, ai_strengths, ai_weaknesses, status, created_at, jobs(title, company_name)',
+    )
+    .eq('user_id', userData.user.id)
+    .order('created_at', { ascending: false });
+
+  return { data: data || null, error };
 }
 
 /**
@@ -63,12 +108,29 @@ export async function getMyApplications() {
  *
  * @param {string} jobId
  * @returns {Promise<boolean>}
- *
- * TODO(Member 3 - Milestone M3):
- *   select('id').eq('job_id', jobId).eq('user_id', uid).maybeSingle()
  */
 export async function hasApplied(jobId) {
-  void supabase;
-  void jobId;
-  throw new Error('hasApplied() is not implemented yet (Member 3 - Ahmed Fayez, M3).');
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+
+  // The JobDetails page is allowed to treat lookup errors as "not applied"
+  // until it can safely show an application error, as specified by the
+  // cross-member integration note in PLAN.md.
+  if (userError || !userData?.user) {
+    return false;
+  }
+
+  const { data, error } = await supabase
+    .from('applications')
+    .select('id')
+    .eq('job_id', jobId)
+    .eq('user_id', userData.user.id)
+    .maybeSingle();
+
+  // A Supabase RLS or network error must not make this look like a successful
+  // application. Returning false keeps the UI from falsely disabling Apply.
+  if (error) {
+    return false;
+  }
+
+  return data !== null;
 }

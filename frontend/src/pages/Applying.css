@@ -14,23 +14,6 @@
   font-size: 0.85em;
 }
 
-.applying-todo-title {
-  margin: var(--space-sm) 0 var(--space-xs);
-  font-weight: 600;
-  color: var(--color-text);
-  font-size: 0.88rem;
-}
-
-.applying-todo-list {
-  margin: 0;
-  padding-left: 1.3rem;
-  font-size: 0.88rem;
-}
-
-.applying-todo-list li {
-  margin-bottom: 0.2rem;
-}
-
 /* Step list used while the pipeline runs */
 .applying-steps {
   list-style: none;
@@ -52,16 +35,92 @@
   border-bottom: none;
 }
 
+.applying-step-icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.applying-step small {
+  display: block;
+  margin-top: 0.12rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
 /* State modifiers: pending -> active -> done / failed */
 .applying-step--active {
   color: var(--color-primary-dark);
   font-weight: 600;
 }
 
+.applying-step--active .applying-step-icon {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+}
+
 .applying-step--done {
   color: var(--color-success);
 }
 
+.applying-step--done .applying-step-icon {
+  border-color: var(--color-success);
+  background-color: var(--color-success-soft);
+}
+
 .applying-step--failed {
   color: var(--color-danger);
+}
+
+.applying-step--failed .applying-step-icon {
+  border-color: var(--color-danger);
+  background-color: var(--color-danger-soft);
+}
+
+.applying-success {
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid #bbf7d0;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
+  font-weight: 700;
+  text-align: center;
+}
+
+.applying-error {
+  padding: var(--space-sm);
+}
+
+.applying-error h2 {
+  color: var(--color-danger);
+}
+
+.applying-error p {
+  color: var(--color-text);
+}
+
+.applying-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+  margin-top: var(--space-lg);
+}
+
+@media (max-width: 480px) {
+  .applying-actions {
+    flex-direction: column;
+  }
+
+  .applying-actions .btn {
+    width: 100%;
+  }
 }
